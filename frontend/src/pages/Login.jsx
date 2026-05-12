@@ -1,0 +1,73 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
+
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await login(email, password);
+      toast.success('Login berhasil! 🎉');
+      navigate('/');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Login gagal');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="min-h-screen bg-cream flex items-center justify-center p-4">
+      {/* Decorative shapes */}
+      <div className="fixed top-10 left-10 w-20 h-20 bg-secondary border-3 border-navy rounded-full rotate-12 hidden md:block" />
+      <div className="fixed bottom-20 right-16 w-16 h-16 bg-primary border-3 border-navy rounded-brutal rotate-6 hidden md:block" />
+      <div className="fixed top-1/4 right-20 w-12 h-12 bg-income border-3 border-navy rotate-45 hidden md:block" />
+
+      <div className="relative w-full max-w-md animate-bounce-in">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold text-navy mb-2">
+            Duit<span className="bg-secondary px-2 py-1 border-3 border-navy rounded-brutal-lg inline-block -rotate-3 shadow-brutal-sm ml-1">Ku</span>
+          </h1>
+          <p className="text-navy/50 font-medium mt-3">Kelola keuangan harianmu 💸</p>
+        </div>
+
+        {/* Form Card */}
+        <div className="brutal-card">
+          <h2 className="text-xl font-bold text-navy mb-6 flex items-center gap-2">
+            👋 Masuk ke Akun
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-navy mb-2">Email</label>
+              <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                className="input-brutal" placeholder="nama@email.com" required />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-navy mb-2">Password</label>
+              <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                className="input-brutal" placeholder="••••••••" required />
+            </div>
+            <button id="login-submit" type="submit" disabled={loading} className="btn-brutal w-full text-center mt-2">
+              {loading ? '⏳ Memproses...' : '🚀 Masuk'}
+            </button>
+          </form>
+          <p className="text-center text-navy/50 text-sm font-medium mt-6">
+            Belum punya akun?{' '}
+            <Link to="/register" className="text-primary font-bold underline decoration-2 underline-offset-2 hover:text-navy transition-colors">
+              Daftar Sekarang
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
