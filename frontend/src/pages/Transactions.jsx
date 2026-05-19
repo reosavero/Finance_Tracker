@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import transactionService from '../services/transactionService';
+import EditTransactionModal from '../components/Transactions/EditTransactionModal';
 import toast from 'react-hot-toast';
-import { HiOutlineFilter, HiOutlineTrash } from 'react-icons/hi';
+import { HiOutlineFilter, HiOutlinePencilAlt, HiOutlineSearch, HiOutlineTrash, HiOutlineX } from 'react-icons/hi';
 
 const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
 
@@ -11,32 +13,57 @@ const Transactions = () => {
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [filters, setFilters] = useState({ type: '', category_id: '', start_date: '', end_date: '' });
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
   const fetchTransactions = async (page = 1) => {
+    setLoading(true);
+    setError('');
+
     try {
       const params = { page, limit: 15 };
       if (filters.type) params.type = filters.type;
       if (filters.category_id) params.category_id = filters.category_id;
       if (filters.start_date) params.start_date = filters.start_date;
       if (filters.end_date) params.end_date = filters.end_date;
-      const res = await api.get('/transactions', { params });
-      setTransactions(res.data.data);
-      setPagination(res.data.pagination);
-    } catch (err) { toast.error('Gagal memuat transaksi'); }
-    finally { setLoading(false); }
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+
+      const res = await transactionService.getTransactions(params);
+      setTransactions(res.data.data || []);
+      setPagination(res.data.pagination || { page: 1, totalPages: 1 });
+    } catch (err) {
+      const message = err.response?.data?.message || 'Gagal memuat transaksi';
+      setError(message);
+      setTransactions([]);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { api.get('/categories').then(r => setCategories(r.data.data)).catch(() => {}); }, []);
-  useEffect(() => { fetchTransactions(); }, [filters]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => { fetchTransactions(1); }, [filters, debouncedSearch]);
 
   const handleDelete = async (id) => {
     if (!confirm('Hapus transaksi ini?')) return;
     try {
-      await api.delete(`/transactions/${id}`);
+      await transactionService.deleteTransaction(id);
       toast.success('Transaksi dihapus! 🗑️');
       fetchTransactions(pagination.page);
     } catch (err) { toast.error('Gagal menghapus'); }
+  };
+
+  const handleEditSuccess = () => {
+    fetchTransactions(pagination.page);
   };
 
   const resetFilters = () => setFilters({ type: '', category_id: '', start_date: '', end_date: '' });
@@ -52,6 +79,35 @@ const Transactions = () => {
           className="btn-brutal-ghost flex items-center gap-2 text-sm">
           <HiOutlineFilter className="w-4 h-4" /> Filter
         </button>
+      </div>
+
+      <div className="brutal-card bg-white/90">
+        <div className="relative">
+          <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-navy/30" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama atau deskripsi transaksi..."
+            className="w-full rounded-brutal border-3 border-navy bg-cream/50 py-3 pl-12 pr-12 text-sm font-semibold text-navy placeholder:text-navy/30 outline-none transition-all focus:bg-white focus:shadow-brutal-sm focus:-translate-y-0.5"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-navy/40 transition-all hover:bg-navy/10 hover:text-navy"
+              aria-label="Hapus pencarian"
+            >
+              <HiOutlineX className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-bold text-navy/40">
+            {debouncedSearch ? `Menampilkan hasil untuk “${debouncedSearch}”` : 'Ketik keyword untuk mencari transaksi secara realtime'}
+          </p>
+          {loading && <p className="text-xs font-bold text-primary animate-pulse">Mencari transaksi...</p>}
+        </div>
       </div>
 
       {showFilters && (
@@ -75,10 +131,21 @@ const Transactions = () => {
 
       {loading ? (
         <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-navy border-t-primary rounded-full animate-spin" /></div>
+      ) : error ? (
+        <div className="brutal-card text-center py-12 border-expense">
+          <p className="text-4xl mb-3">⚠️</p>
+          <p className="text-expense font-bold">{error}</p>
+          <button onClick={() => fetchTransactions(1)} className="btn-brutal-ghost mt-4 text-xs">Coba Lagi</button>
+        </div>
       ) : transactions.length === 0 ? (
         <div className="brutal-card text-center py-12">
-          <p className="text-4xl mb-3">📭</p>
-          <p className="text-navy/40 font-bold">Belum ada transaksi</p>
+          <p className="text-4xl mb-3">{debouncedSearch ? '🔎' : '📭'}</p>
+          <p className="text-navy/40 font-bold">
+            {debouncedSearch ? `Tidak ada transaksi yang cocok dengan “${debouncedSearch}”` : 'Belum ada transaksi'}
+          </p>
+          {debouncedSearch && (
+            <button onClick={() => setSearch('')} className="btn-brutal-ghost mt-4 text-xs">Tampilkan Semua</button>
+          )}
         </div>
       ) : (
         <div className="brutal-card overflow-hidden p-0">
@@ -90,7 +157,7 @@ const Transactions = () => {
                   <th className="text-left px-5 py-4 text-xs font-bold text-navy uppercase tracking-wider">Kategori</th>
                   <th className="text-left px-5 py-4 text-xs font-bold text-navy uppercase tracking-wider hidden sm:table-cell">Keterangan</th>
                   <th className="text-right px-5 py-4 text-xs font-bold text-navy uppercase tracking-wider">Nominal</th>
-                  <th className="px-5 py-4 w-10"></th>
+                  <th className="px-5 py-4 w-28 text-center text-xs font-bold text-navy uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,10 +181,24 @@ const Transactions = () => {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <button onClick={() => handleDelete(t.id)}
-                        className="p-2 rounded-brutal border-2 border-transparent text-navy/20 hover:border-expense hover:text-expense hover:bg-expense/10 transition-all">
-                        <HiOutlineTrash className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTransaction(t)}
+                          className="p-2 rounded-brutal border-2 border-transparent text-navy/30 hover:-translate-y-0.5 hover:border-primary hover:text-primary hover:bg-primary/10 transition-all"
+                          title="Edit transaksi"
+                          aria-label="Edit transaksi"
+                        >
+                          <HiOutlinePencilAlt className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(t.id)}
+                          className="p-2 rounded-brutal border-2 border-transparent text-navy/20 hover:-translate-y-0.5 hover:border-expense hover:text-expense hover:bg-expense/10 transition-all"
+                          title="Hapus transaksi"
+                          aria-label="Hapus transaksi"
+                        >
+                          <HiOutlineTrash className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -138,6 +219,12 @@ const Transactions = () => {
           )}
         </div>
       )}
+      <EditTransactionModal
+        isOpen={Boolean(editingTransaction)}
+        transaction={editingTransaction}
+        onClose={() => setEditingTransaction(null)}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 };

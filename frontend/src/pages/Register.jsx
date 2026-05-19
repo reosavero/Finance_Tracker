@@ -18,7 +18,7 @@ const Register = () => {
     try {
       await register({ ...form, monthly_allowance: parseFloat(form.monthly_allowance) || 0 });
       toast.success('Registrasi berhasil! 🎉');
-      navigate('/');
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registrasi gagal');
     } finally { setLoading(false); }
@@ -39,7 +39,7 @@ const Register = () => {
         </div>
 
         <div className="brutal-card">
-          <h2 className="text-xl font-bold text-navy mb-6">📝 Buat Akun Baru</h2>
+          <h2 className="text-xl font-bold text-navy mb-6">Buat Akun Baru</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-navy mb-2">Nama Lengkap</label>
@@ -49,7 +49,7 @@ const Register = () => {
             <div>
               <label className="block text-sm font-bold text-navy mb-2">Email</label>
               <input name="email" type="email" value={form.email} onChange={handleChange}
-                className="input-brutal" placeholder="nama@email.com" required />
+                className="input-brutal" placeholder="nama@gmail.com" required />
             </div>
             <div>
               <label className="block text-sm font-bold text-navy mb-2">Password</label>
@@ -61,8 +61,8 @@ const Register = () => {
               <input name="monthly_allowance" type="number" value={form.monthly_allowance} onChange={handleChange}
                 className="input-brutal" placeholder="Contoh: 1500000" />
             </div>
-            <button type="submit" disabled={loading} className="btn-brutal w-full text-center mt-2">
-              {loading ? '⏳ Memproses...' : '🎉 Daftar Sekarang'}
+            <button type="submit" disabled={loading} className="btn-brutal w-full text-center mt-2 disabled:opacity-50">
+              {loading ? '⏳ Memproses...' : 'Daftar Sekarang'}
             </button>
           </form>
           <p className="text-center text-navy/50 text-sm font-medium mt-6">

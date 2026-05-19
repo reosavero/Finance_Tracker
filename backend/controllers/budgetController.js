@@ -46,15 +46,25 @@ const getBudgets = async (req, res, next) => {
 
     // Hitung persentase dan status
     const enriched = budgets.map((b) => {
-      const percentage = b.limit_amount > 0
-        ? Math.round((b.spent_amount / b.limit_amount) * 100)
+      const limitAmount = parseFloat(b.limit_amount || 0);
+      const spentAmount = parseFloat(b.spent_amount || 0);
+      const percentage = limitAmount > 0
+        ? Math.round((spentAmount / limitAmount) * 100)
         : 0;
       let status = 'safe';
       if (percentage >= 100) status = 'exceeded';
       else if (percentage >= 80) status = 'warning';
       else if (percentage >= 60) status = 'caution';
 
-      return { ...b, percentage, status, remaining: b.limit_amount - b.spent_amount };
+      return {
+        ...b,
+        limit_amount: limitAmount,
+        spent_amount: spentAmount,
+        percentage,
+        status,
+        remaining: limitAmount - spentAmount,
+        is_locked: spentAmount >= limitAmount,
+      };
     });
 
     res.json({ success: true, data: enriched });

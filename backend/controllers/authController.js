@@ -1,6 +1,8 @@
 // =====================================================
 // controllers/authController.js — Registrasi & Login
 // =====================================================
+const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
@@ -52,6 +54,7 @@ const register = async (req, res, next) => {
         name,
         email,
         monthly_allowance: monthly_allowance || 0,
+        profile_photo: null,
         token,
       },
     });
@@ -107,6 +110,7 @@ const login = async (req, res, next) => {
         name: user.name,
         email: user.email,
         monthly_allowance: user.monthly_allowance,
+        profile_photo: user.profile_photo,
         token,
       },
     });
@@ -119,7 +123,7 @@ const login = async (req, res, next) => {
 const getProfile = async (req, res, next) => {
   try {
     const [users] = await pool.query(
-      'SELECT id, name, email, monthly_allowance, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, monthly_allowance, profile_photo, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
 
@@ -133,18 +137,32 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-// Update profile (termasuk uang saku bulanan)
+// Update profile (nama, email, uang saku bulanan)
 const updateProfile = async (req, res, next) => {
   try {
-    const { name, monthly_allowance } = req.body;
-    
+    const { name, email, monthly_allowance } = req.body;
+
+    // Jika email diubah, cek duplikasi
+    if (email) {
+      const [existing] = await pool.query(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [email, req.user.id]
+      );
+      if (existing.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email sudah digunakan oleh user lain.',
+        });
+      }
+    }
+
     await pool.query(
-      'UPDATE users SET name = COALESCE(?, name), monthly_allowance = COALESCE(?, monthly_allowance) WHERE id = ?',
-      [name, monthly_allowance, req.user.id]
+      'UPDATE users SET name = COALESCE(?, name), email = COALESCE(?, email), monthly_allowance = COALESCE(?, monthly_allowance) WHERE id = ?',
+      [name, email, monthly_allowance, req.user.id]
     );
 
     const [users] = await pool.query(
-      'SELECT id, name, email, monthly_allowance FROM users WHERE id = ?',
+      'SELECT id, name, email, monthly_allowance, profile_photo, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
 
@@ -154,4 +172,129 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getProfile, updateProfile };
+// Upload foto profil
+const uploadProfilePhoto = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'File foto profil wajib diupload.',
+      });
+    }
+
+    const photoPath = `/uploads/profiles/${req.file.filename}`;
+
+    const [users] = await pool.query(
+      'SELECT profile_photo FROM users WHERE id = ?',
+      [req.user.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+    }
+
+    const oldPhoto = users[0].profile_photo;
+
+    await pool.query(
+      'UPDATE users SET profile_photo = ? WHERE id = ?',
+      [photoPath, req.user.id]
+    );
+
+    if (oldPhoto && oldPhoto.startsWith('/uploads/profiles/')) {
+      const oldPhotoPath = path.join(__dirname, '..', oldPhoto.replace(/^\//, ''));
+      fs.unlink(oldPhotoPath, () => {});
+    }
+
+    const [updatedUsers] = await pool.query(
+      'SELECT id, name, email, monthly_allowance, profile_photo, created_at FROM users WHERE id = ?',
+      [req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Foto profil berhasil diupload.',
+      data: updatedUsers[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Ganti password
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password lama dan password baru wajib diisi.',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password baru minimal 6 karakter.',
+      });
+    }
+
+    // Ambil password user saat ini
+    const [users] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+    }
+
+    // Verifikasi password lama
+    const isMatch = await bcrypt.compare(currentPassword, users[0].password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Password lama tidak sesuai.',
+      });
+    }
+
+    // Hash & simpan password baru
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
+
+    res.json({ success: true, message: 'Password berhasil diubah.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Verifikasi password saat ini (untuk step 1 ubah password)
+const verifyPassword = async (req, res, next) => {
+  try {
+    const { currentPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password saat ini wajib diisi.',
+      });
+    }
+
+    const [users] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, users[0].password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Password saat ini tidak sesuai.',
+      });
+    }
+
+    res.json({ success: true, message: 'Password terverifikasi.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, getProfile, updateProfile, uploadProfilePhoto, changePassword, verifyPassword };

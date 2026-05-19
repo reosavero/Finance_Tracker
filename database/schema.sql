@@ -19,6 +19,7 @@ CREATE TABLE users (
   email       VARCHAR(150)  NOT NULL UNIQUE,
   password    VARCHAR(255)  NOT NULL,
   monthly_allowance DECIMAL(15,2) DEFAULT 0.00 COMMENT 'Uang saku bulanan default',
+  profile_photo VARCHAR(255) NULL COMMENT 'Path foto profil user',
   created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
   updated_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;

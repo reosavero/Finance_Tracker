@@ -3,6 +3,69 @@
 // CRUD transaksi pengeluaran & pemasukan
 // =====================================================
 const { pool } = require('../config/db');
+const transactionService = require('../services/transactionService');
+
+const getMonthRange = (dateString) => {
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const endDate = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+  return { startDate, endDate, budgetMonth: startDate };
+};
+
+const validateExpenseBudgetLimit = async ({
+  userId,
+  categoryId,
+  amount,
+  transactionDate,
+  excludeTransactionId = null,
+}) => {
+  const { startDate, endDate, budgetMonth } = getMonthRange(transactionDate);
+
+  const [budgets] = await pool.query(
+    `SELECT b.id, b.limit_amount, c.name AS category_name
+     FROM budgets b
+     JOIN categories c ON c.id = b.category_id
+     WHERE b.user_id = ? AND b.category_id = ? AND b.budget_month = ?
+     LIMIT 1`,
+    [userId, categoryId, budgetMonth]
+  );
+
+  if (budgets.length === 0) {
+    return;
+  }
+
+  const budget = budgets[0];
+  let spentQuery = `
+    SELECT COALESCE(SUM(amount), 0) AS total
+    FROM transactions
+    WHERE user_id = ?
+      AND category_id = ?
+      AND type = 'expense'
+      AND transaction_date BETWEEN ? AND ?
+  `;
+  const spentParams = [userId, categoryId, startDate, endDate];
+
+  if (excludeTransactionId) {
+    spentQuery += ' AND id != ?';
+    spentParams.push(excludeTransactionId);
+  }
+
+  const [[spentResult]] = await pool.query(spentQuery, spentParams);
+  const currentSpent = parseFloat(spentResult.total || 0);
+  const nextSpent = currentSpent + parseFloat(amount || 0);
+  const limitAmount = parseFloat(budget.limit_amount || 0);
+
+  if (nextSpent > limitAmount) {
+    const remaining = Math.max(limitAmount - currentSpent, 0);
+    const error = new Error(
+      `Budget kategori ${budget.category_name} sudah melewati batas. Sisa anggaran: Rp${Math.round(remaining).toLocaleString('id-ID')}.`
+    );
+    error.status = 400;
+    throw error;
+  }
+};
 
 // CREATE — Tambah transaksi baru
 const createTransaction = async (req, res, next) => {
@@ -32,6 +95,15 @@ const createTransaction = async (req, res, next) => {
       });
     }
 
+    if (type === 'expense') {
+      await validateExpenseBudgetLimit({
+        userId: user_id,
+        categoryId: category_id,
+        amount,
+        transactionDate: transaction_date,
+      });
+    }
+
     const [result] = await pool.query(
       `INSERT INTO transactions (user_id, category_id, type, amount, description, transaction_date)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -57,66 +129,15 @@ const createTransaction = async (req, res, next) => {
   }
 };
 
-// READ — Ambil semua transaksi user (dengan filter)
+// READ — Ambil semua transaksi user (filter, search, pagination)
 const getTransactions = async (req, res, next) => {
   try {
-    const user_id = req.user.id;
-    const { type, category_id, start_date, end_date, page = 1, limit = 20 } = req.query;
-
-    let query = `
-      SELECT t.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color
-      FROM transactions t
-      JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = ?
-    `;
-    const params = [user_id];
-
-    // Filter by type
-    if (type && ['expense', 'income'].includes(type)) {
-      query += ' AND t.type = ?';
-      params.push(type);
-    }
-
-    // Filter by category
-    if (category_id) {
-      query += ' AND t.category_id = ?';
-      params.push(category_id);
-    }
-
-    // Filter by date range
-    if (start_date) {
-      query += ' AND t.transaction_date >= ?';
-      params.push(start_date);
-    }
-    if (end_date) {
-      query += ' AND t.transaction_date <= ?';
-      params.push(end_date);
-    }
-
-    // Count total for pagination
-    const countQuery = query.replace(
-      /SELECT t\.\*, c\.name AS category_name, c\.icon AS category_icon, c\.color AS category_color/,
-      'SELECT COUNT(*) AS total'
-    );
-    const [countResult] = await pool.query(countQuery, params);
-    const total = countResult[0].total;
-
-    // Order & pagination
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    query += ' ORDER BY t.transaction_date DESC, t.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), offset);
-
-    const [transactions] = await pool.query(query, params);
+    const result = await transactionService.getTransactions(req.user.id, req.query);
 
     res.json({
       success: true,
-      data: transactions,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages: Math.ceil(total / parseInt(limit)),
-      },
+      data: result.data,
+      pagination: result.pagination,
     });
   } catch (error) {
     next(error);
@@ -154,7 +175,7 @@ const updateTransaction = async (req, res, next) => {
 
     // Pastikan transaksi milik user ini
     const [existing] = await pool.query(
-      'SELECT id FROM transactions WHERE id = ? AND user_id = ?',
+      'SELECT * FROM transactions WHERE id = ? AND user_id = ?',
       [req.params.id, req.user.id]
     );
 
@@ -162,6 +183,22 @@ const updateTransaction = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Transaksi tidak ditemukan.',
+      });
+    }
+
+    const current = existing[0];
+    const nextCategoryId = category_id ?? current.category_id;
+    const nextType = type ?? current.type;
+    const nextAmount = amount ?? current.amount;
+    const nextTransactionDate = transaction_date ?? current.transaction_date;
+
+    if (nextType === 'expense') {
+      await validateExpenseBudgetLimit({
+        userId: req.user.id,
+        categoryId: nextCategoryId,
+        amount: nextAmount,
+        transactionDate: nextTransactionDate,
+        excludeTransactionId: req.params.id,
       });
     }
 

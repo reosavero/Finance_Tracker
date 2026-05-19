@@ -4,6 +4,16 @@
 // =====================================================
 const { pool } = require('../config/db');
 
+const allowedTypes = ['expense', 'income'];
+const hexColorRegex = /^#([0-9A-Fa-f]{6})$/;
+
+const normalizeCategoryInput = ({ name, icon, color, type }) => ({
+  name: String(name || '').trim(),
+  icon: String(icon || '📌').trim() || '📌',
+  color: String(color || '#6366f1').trim(),
+  type: String(type || '').trim(),
+});
+
 // GET — Ambil semua kategori (default + milik user)
 const getCategories = async (req, res, next) => {
   try {
@@ -16,7 +26,7 @@ const getCategories = async (req, res, next) => {
     `;
     const params = [user_id];
 
-    if (type && ['expense', 'income'].includes(type)) {
+    if (type && allowedTypes.includes(type)) {
       query += ' AND type = ?';
       params.push(type);
     }
@@ -34,8 +44,8 @@ const getCategories = async (req, res, next) => {
 // POST — Tambah kategori kustom user
 const createCategory = async (req, res, next) => {
   try {
-    const { name, icon, color, type } = req.body;
     const user_id = req.user.id;
+    const { name, icon, color, type } = normalizeCategoryInput(req.body);
 
     if (!name || !type) {
       return res.status(400).json({
@@ -44,9 +54,35 @@ const createCategory = async (req, res, next) => {
       });
     }
 
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type kategori harus expense atau income.',
+      });
+    }
+
+    if (!hexColorRegex.test(color)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Warna kategori harus berupa kode hex valid, misalnya #6366f1.',
+      });
+    }
+
+    const [existing] = await pool.query(
+      'SELECT id FROM categories WHERE user_id = ? AND type = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+      [user_id, type, name]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Kategori dengan nama yang sama sudah ada pada tipe ini.',
+      });
+    }
+
     const [result] = await pool.query(
       'INSERT INTO categories (name, icon, color, type, is_default, user_id) VALUES (?, ?, ?, ?, 0, ?)',
-      [name, icon || '📌', color || '#6366f1', type, user_id]
+      [name, icon, color, type, user_id]
     );
 
     const [newCategory] = await pool.query('SELECT * FROM categories WHERE id = ?', [result.insertId]);
@@ -61,20 +97,124 @@ const createCategory = async (req, res, next) => {
   }
 };
 
+// PUT — Edit kategori kustom milik user
+const updateCategory = async (req, res, next) => {
+  try {
+    const user_id = req.user.id;
+    const categoryId = parseInt(req.params.id, 10);
+    const { name, icon, color, type } = normalizeCategoryInput(req.body);
+
+    if (!categoryId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID kategori tidak valid.',
+      });
+    }
+
+    if (!name || !type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nama dan type kategori wajib diisi.',
+      });
+    }
+
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type kategori harus expense atau income.',
+      });
+    }
+
+    if (!hexColorRegex.test(color)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Warna kategori harus berupa kode hex valid, misalnya #6366f1.',
+      });
+    }
+
+    const [ownedCategory] = await pool.query(
+      'SELECT id FROM categories WHERE id = ? AND user_id = ? AND is_default = 0 LIMIT 1',
+      [categoryId, user_id]
+    );
+
+    if (ownedCategory.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kategori tidak ditemukan atau tidak bisa diubah.',
+      });
+    }
+
+    const [duplicate] = await pool.query(
+      'SELECT id FROM categories WHERE user_id = ? AND type = ? AND LOWER(name) = LOWER(?) AND id != ? LIMIT 1',
+      [user_id, type, name, categoryId]
+    );
+
+    if (duplicate.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Kategori dengan nama yang sama sudah ada pada tipe ini.',
+      });
+    }
+
+    await pool.query(
+      'UPDATE categories SET name = ?, icon = ?, color = ?, type = ? WHERE id = ? AND user_id = ? AND is_default = 0',
+      [name, icon, color, type, categoryId, user_id]
+    );
+
+    const [updatedCategory] = await pool.query('SELECT * FROM categories WHERE id = ?', [categoryId]);
+
+    res.json({
+      success: true,
+      message: 'Kategori berhasil diperbarui!',
+      data: updatedCategory[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // DELETE — Hapus kategori kustom (hanya milik user, bukan default)
 const deleteCategory = async (req, res, next) => {
   try {
-    const [result] = await pool.query(
-      'DELETE FROM categories WHERE id = ? AND user_id = ? AND is_default = 0',
-      [req.params.id, req.user.id]
+    const categoryId = parseInt(req.params.id, 10);
+    const user_id = req.user.id;
+
+    const [ownedCategory] = await pool.query(
+      'SELECT id, name FROM categories WHERE id = ? AND user_id = ? AND is_default = 0 LIMIT 1',
+      [categoryId, user_id]
     );
 
-    if (result.affectedRows === 0) {
+    if (ownedCategory.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Kategori tidak ditemukan atau tidak bisa dihapus.',
       });
     }
+
+    const [[transactionUsage]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM transactions WHERE user_id = ? AND category_id = ?',
+      [user_id, categoryId]
+    );
+    const [[budgetUsage]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM budgets WHERE user_id = ? AND category_id = ?',
+      [user_id, categoryId]
+    );
+    const [[billUsage]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM recurring_bills WHERE user_id = ? AND category_id = ?',
+      [user_id, categoryId]
+    );
+
+    if (transactionUsage.total > 0 || budgetUsage.total > 0 || billUsage.total > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Kategori masih digunakan di transaksi, budget, atau tagihan. Hapus/pindahkan data terkait terlebih dahulu.',
+      });
+    }
+
+    await pool.query(
+      'DELETE FROM categories WHERE id = ? AND user_id = ? AND is_default = 0',
+      [categoryId, user_id]
+    );
 
     res.json({ success: true, message: 'Kategori berhasil dihapus.' });
   } catch (error) {
@@ -82,4 +222,4 @@ const deleteCategory = async (req, res, next) => {
   }
 };
 
-module.exports = { getCategories, createCategory, deleteCategory };
+module.exports = { getCategories, createCategory, updateCategory, deleteCategory };

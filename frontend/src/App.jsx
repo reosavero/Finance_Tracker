@@ -1,19 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import AppLayout from './components/Layout/AppLayout';
 import ProtectedRoute from './components/Layout/ProtectedRoute';
+import PublicRoute from './components/Layout/PublicRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Budget from './pages/Budget';
 import Bills from './pages/Bills';
-
-const PublicRoute = ({ children }) => {
-  const { user } = useAuth();
-  return user ? <Navigate to="/" replace /> : children;
-};
+import Categories from './pages/Categories';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -36,16 +34,27 @@ function App() {
             error: { iconTheme: { primary: '#EF476F', secondary: '#fff' } },
           }}
         />
+
         <Routes>
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/budget" element={<Budget />} />
-            <Route path="/bills" element={<Bills />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          <Route element={<PublicRoute />}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/budget" element={<Budget />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/bills" element={<Bills />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
