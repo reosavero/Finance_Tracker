@@ -29,6 +29,7 @@ const CategorySelect = ({
   type,
   disabled,
   placeholder = 'Pilih Kategori',
+  className = '',
 }) => {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
@@ -76,7 +77,7 @@ const CategorySelect = ({
   const selected = categories.find((c) => String(c.id) === String(value));
 
   return (
-    <>
+    <div className={className}>
       {/* Trigger button */}
       <button
         ref={btnRef}
@@ -145,7 +146,7 @@ const CategorySelect = ({
         </div>,
         document.body
       )}
-    </>
+    </div>
   );
 };
 
