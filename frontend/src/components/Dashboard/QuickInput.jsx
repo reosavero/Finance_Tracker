@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
@@ -6,6 +6,8 @@ import {
   HiOutlinePlus,
   HiOutlineMinus,
   HiOutlineLockClosed,
+  HiOutlineChevronDown,
+  HiOutlineCheck,
 } from 'react-icons/hi';
 
 const formatRp = (value) => new Intl.NumberFormat('id-ID', {
@@ -26,6 +28,93 @@ const toLocalDate = (date = new Date()) => {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+// =====================================================
+// CategorySelect — Custom dropdown kategori dengan
+// sudut lengkung (neubrutalism), opsi tidak kotak
+// =====================================================
+const CategorySelect = ({ value, onChange, categories, budgetMap, type, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selected = categories.find((c) => String(c.id) === String(value));
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+        className={`input-brutal w-full text-left flex items-center justify-between gap-2 text-sm ${
+          value ? 'text-navy font-bold' : 'text-navy/30 font-medium'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        <span className="truncate">
+          {selected ? `${selected.icon} ${selected.name}` : 'Pilih Kategori'}
+        </span>
+        <HiOutlineChevronDown className={`w-4 h-4 shrink-0 text-navy/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-2 z-50 max-h-52 overflow-y-auto rounded-brutal border-3 border-navy bg-white shadow-brutal-lg animate-pop">
+          {categories.length === 0 && (
+            <div className="px-4 py-3 text-xs font-medium text-navy/40">Tidak ada kategori</div>
+          )}
+          {categories.map((c) => {
+            const budget = type === 'expense' ? budgetMap?.get(String(c.id)) : null;
+            const locked = Boolean(budget?.is_locked);
+            const remaining = budget ? Math.max(Number(budget.remaining) || 0, 0) : null;
+            const isSelected = String(c.id) === String(value);
+
+            return (
+              <button
+                key={c.id}
+                type="button"
+                disabled={locked}
+                onClick={() => {
+                  if (!locked) {
+                    onChange(String(c.id));
+                    setOpen(false);
+                  }
+                }}
+                className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors first:rounded-t-brutal last:rounded-b-brutal ${
+                  locked
+                    ? 'cursor-not-allowed text-navy/30 bg-cream/50'
+                    : isSelected
+                      ? 'bg-primary/10 font-bold text-navy'
+                      : 'font-medium text-navy/70 hover:bg-cream'
+                }`}
+              >
+                <span className="shrink-0">{c.icon}</span>
+                <span className="flex-1 truncate">{c.name}</span>
+                {locked && (
+                  <span className="shrink-0 text-[10px] font-bold text-expense">🔒 Habis</span>
+                )}
+                {!locked && budget && (
+                  <span className="shrink-0 text-[10px] font-bold text-navy/40">Sisa {formatRp(remaining)}</span>
+                )}
+                {isSelected && !locked && (
+                  <HiOutlineCheck className="w-4 h-4 shrink-0 text-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const QuickInput = ({ onSuccess }) => {
@@ -80,6 +169,7 @@ const QuickInput = ({ onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || parseNumberInput(amount) <= 0) return toast.error('Nominal dan kategori wajib diisi');
+    if (!categoryId) return toast.error('Kategori wajib dipilih');
     if (type === 'expense' && isBudgetLocked) {
       return toast.error('Kategori ini sudah melewati limit anggaran bulan ini, input pengeluaran ditolak.');
     }
@@ -90,7 +180,6 @@ const QuickInput = ({ onSuccess }) => {
         description: description || null, transaction_date: date,
       });
       toast.success(type === 'expense' ? 'Pengeluaran dicatat! 📝' : 'Pemasukan dicatat! 💸');
-      // Refresh dashboard dulu, baru reset form
       await onSuccess?.();
       setAmount(''); setDescription(''); setCategoryId('');
       setDate(toLocalDate());
@@ -125,23 +214,17 @@ const QuickInput = ({ onSuccess }) => {
             amount && type === 'income' ? 'border-income focus:shadow-brutal-income' :
             amount && type === 'expense' ? 'border-expense focus:shadow-brutal-expense' : ''
           }`}
-          placeholder="Rp 0" min="1" required />
-        <div className="grid grid-cols-2 gap-3">
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-            className="select-brutal text-sm" required>
-            <option value="">Kategori</option>
-            {categories.map((c) => {
-              const budget = type === 'expense' ? budgetMap.get(String(c.id)) : null;
-              const locked = Boolean(budget?.is_locked);
-              const remaining = budget ? Math.max(Number(budget.remaining) || 0, 0) : null;
+          placeholder="Rp 0" required />
 
-              return (
-                <option key={c.id} value={c.id} disabled={locked}>
-                  {c.icon} {c.name}{locked ? ' — Limit habis' : budget ? ` — Sisa ${formatRp(remaining)}` : ''}
-                </option>
-              );
-            })}
-          </select>
+        <div className="grid grid-cols-2 gap-3">
+          <CategorySelect
+            value={categoryId}
+            onChange={setCategoryId}
+            categories={categories}
+            budgetMap={budgetMap}
+            type={type}
+            disabled={loading}
+          />
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-brutal text-sm" />
         </div>
 
