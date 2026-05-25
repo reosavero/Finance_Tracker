@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { HiOutlinePencilAlt, HiOutlinePlus, HiOutlineX } from 'react-icons/hi';
 import api from '../../services/api';
+import Select from '../ui/Select';
 
 const CATEGORY_TYPES = [
-  { value: 'expense', label: 'Pengeluaran' },
-  { value: 'income', label: 'Pemasukan' },
+  { value: 'expense', label: 'Pengeluaran', icon: '💸' },
+  { value: 'income', label: 'Pemasukan', icon: '💰' },
 ];
 
 const COLOR_PRESETS = ['#4361EE', '#06D6A0', '#EF476F', '#F77F00', '#7209B7', '#FFD60A', '#3B82F6', '#10B981'];
@@ -161,17 +162,16 @@ const EditCategoryModal = ({ isOpen, category, onClose, onSuccess }) => {
               <label className="text-xs font-extrabold uppercase tracking-wider text-navy/50">
                 Tipe Kategori
               </label>
-              <select
+              <Select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
-                disabled={saving || isDefault}
-                className="select-brutal w-full text-sm disabled:opacity-50"
-                required
-              >
-                {CATEGORY_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                onChange={(v) => setForm({ ...form, type: v })}
+                options={CATEGORY_TYPES.map((t) => (
+                  isDefault ? { ...t, disabled: t.value !== form.type } : t
                 ))}
-              </select>
+                disabled={saving || isDefault}
+                placeholder="Pilih tipe"
+                className="w-full"
+              />
             </div>
 
             {/* Ikon */}
