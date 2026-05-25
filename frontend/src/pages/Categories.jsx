@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   HiOutlineDotsVertical,
@@ -89,10 +89,30 @@ const Categories = () => {
 
   const CategoryCard = ({ category }) => {
     const isDefault = category.is_default;
+    const isOpen = openActionId === category.id;
+    const btnRef = useRef(null);
+    const [dropUp, setDropUp] = useState(false);
+
+    const handleToggle = (e) => {
+      e.stopPropagation();
+      if (openActionId === category.id) {
+        setOpenActionId(null);
+      } else {
+        // Deteksi apakah tombol dekat bawah viewport → dropdown muncul ke atas
+        if (btnRef.current) {
+          const rect = btnRef.current.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          setDropUp(spaceBelow < 120);
+        }
+        setOpenActionId(category.id);
+      }
+    };
 
     return (
       <div
-        className="group relative bg-white border-3 border-navy rounded-brutal shadow-brutal transition-all duration-150 hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[8px_8px_0px_#1A1A2E]"
+        className={`group relative bg-white border-3 border-navy rounded-brutal shadow-brutal transition-all duration-150 hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[8px_8px_0px_#1A1A2E] ${
+          isOpen ? 'z-30' : ''
+        }`}
       >
         {/* Main content */}
         <div className="p-4">
@@ -123,19 +143,21 @@ const Categories = () => {
             {/* Actions */}
             <div className="relative shrink-0">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenActionId(openActionId === category.id ? null : category.id);
-                }}
-                className="flex h-8 w-8 items-center justify-center rounded-brutal border-2 border-navy/20 text-navy/40 transition-all hover:border-navy hover:bg-cream hover:text-navy"
+                ref={btnRef}
+                onClick={handleToggle}
+                className={`flex h-8 w-8 items-center justify-center rounded-brutal border-2 transition-all ${
+                  isOpen ? 'border-navy bg-cream text-navy' : 'border-navy/20 text-navy/40 hover:border-navy hover:bg-cream hover:text-navy'
+                }`}
                 aria-label="Menu aksi"
               >
                 <HiOutlineDotsVertical className="h-4 w-4" />
               </button>
 
-              {openActionId === category.id && (
+              {isOpen && (
                 <div
-                  className="absolute right-0 top-full z-20 mt-1 min-w-[160px] animate-pop rounded-brutal border-3 border-navy bg-white shadow-brutal-lg"
+                  className={`absolute right-0 z-50 min-w-[180px] animate-pop rounded-brutal border-3 border-navy bg-white shadow-brutal-lg ${
+                    dropUp ? 'bottom-full mb-2' : 'top-full mt-2'
+                  }`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
