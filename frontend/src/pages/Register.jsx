@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 const Register = () => {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { registerOnly } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,9 +16,15 @@ const Register = () => {
     if (form.password.length < 6) return toast.error('Password minimal 6 karakter');
     setLoading(true);
     try {
-      await register(form);
-      toast.success('Registrasi berhasil! 🎉');
-      navigate('/dashboard', { replace: true });
+      await registerOnly(form);
+      toast.success('Akun berhasil dibuat! Silakan login. 🎉');
+      navigate('/login', {
+        state: {
+          registeredEmail: form.email,
+          registeredName: form.name,
+        },
+        replace: true,
+      });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registrasi gagal');
     } finally { setLoading(false); }

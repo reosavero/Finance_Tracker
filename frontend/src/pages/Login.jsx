@@ -4,13 +4,18 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = location.state?.from?.pathname || '/dashboard';
+
+  // Info dari halaman Register (setelah berhasil daftar)
+  const registeredEmail = location.state?.registeredEmail || '';
+  const registeredName = location.state?.registeredName || '';
+
+  const [email, setEmail] = useState(registeredEmail);
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,6 +57,23 @@ const Login = () => {
           <h2 className="text-xl font-bold text-navy mb-6 flex items-center gap-2">
             Masuk ke Akun
           </h2>
+
+          {/* Banner: akun baru berhasil didaftarkan */}
+          {registeredEmail && (
+            <div className="mb-5 rounded-brutal border-3 border-income bg-income/10 p-4 animate-bounce-in">
+              <div className="flex items-start gap-3">
+                <span className="text-xl shrink-0">✅</span>
+                <div>
+                  <p className="text-sm font-extrabold text-navy">Akun berhasil dibuat!</p>
+                  <p className="mt-1 text-xs font-medium text-navy/60 leading-relaxed">
+                    {registeredName ? <>Selamat datang, <strong className="text-navy">{registeredName}</strong>! </> : 'Selamat datang! '}
+                    Silakan masuk dengan akun yang baru saja kamu daftarkan.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-navy mb-2">Email</label>

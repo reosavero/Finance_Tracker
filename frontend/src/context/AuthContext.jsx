@@ -55,6 +55,10 @@ export const AuthProvider = ({ children }) => {
     return res;
   };
 
+  const registerOnly = async (data) => {
+    return await authService.registerOnly(data);
+  };
+
   const updateUser = (userData) => {
     setUser(userData);
     authService.updateStoredUser(userData);
@@ -66,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: Boolean(user && authService.getToken()),
     login,
     register,
+    registerOnly,
     logout,
     updateUser,
   }), [user, loading, logout]);

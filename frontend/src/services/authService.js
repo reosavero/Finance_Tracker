@@ -49,6 +49,15 @@ const authService = {
     return { ...res.data, data: { ...user, token } };
   },
 
+  /**
+   * Register tanpa auto-login — hanya buat akun, tidak set session.
+   * Setelah ini user harus login manual di halaman Login.
+   */
+  registerOnly: async (payload) => {
+    const res = await api.post('/auth/register', payload);
+    return res.data;
+  },
+
   getProfile: async () => api.get('/auth/profile'),
 
   updateStoredUser: (user) => {
