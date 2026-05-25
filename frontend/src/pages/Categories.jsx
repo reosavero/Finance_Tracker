@@ -219,7 +219,7 @@ const Categories = () => {
     return (
       <section className="brutal-card space-y-5">
         {/* Section header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xl">{typeInfo?.emoji}</span>
@@ -232,12 +232,6 @@ const Categories = () => {
               <span className="text-navy/30">{items.length} total</span>
             </div>
           </div>
-          <button
-            onClick={() => setEditModal({ open: true, category: null })}
-            className="btn-brutal-secondary inline-flex items-center justify-center gap-2 text-sm"
-          >
-            <HiOutlinePlus className="h-4 w-4" /> Tambah
-          </button>
         </div>
 
         {/* Cards */}
