@@ -93,11 +93,7 @@ const PayBillModal = ({ isOpen, bill, onClose, onSuccess }) => {
         duration: 4000,
         icon: '🎉',
       });
-      // Auto-close setelah 2 detik
-      setTimeout(() => {
-        onSuccess?.();
-        onClose?.();
-      }, 2000);
+      // Tunggu user klik "Tutup" — jangan auto-close
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal membayar tagihan. Coba lagi.';
       setError(msg);
