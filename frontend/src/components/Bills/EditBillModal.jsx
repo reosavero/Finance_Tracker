@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
 import { HiOutlinePencilAlt, HiOutlineX } from 'react-icons/hi';
 import billService from '../../services/billService';
 
@@ -40,7 +41,7 @@ const EditBillModal = ({ isOpen, bill, categories = [], onClose, onSuccess }) =>
 
     setForm({
       name: bill.name || '',
-      amount: bill.amount ? String(Number(bill.amount)) : '',
+      amount: bill.amount ? formatNumberInput(String(Number(bill.amount))) : '',
       due_day: bill.due_day ? String(bill.due_day) : '',
       category_id: bill.category_id ? String(bill.category_id) : '',
       is_active: Boolean(bill.is_active ?? true),
@@ -52,13 +53,14 @@ const EditBillModal = ({ isOpen, bill, categories = [], onClose, onSuccess }) =>
   if (!isOpen || !bill) return null;
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    const formatted = (field === 'amount') ? formatNumberInput(value) : value;
+    setForm((prev) => ({ ...prev, [field]: formatted }));
     setError('');
   };
 
   const validateForm = () => {
     if (!form.name.trim()) return 'Nama tagihan wajib diisi.';
-    if (!form.amount || Number(form.amount) <= 0) return 'Nominal tagihan harus lebih dari 0.';
+    if (!form.amount || parseNumberInput(form.amount) <= 0) return 'Nominal tagihan harus lebih dari 0.';
 
     const dueDay = Number(form.due_day);
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
@@ -83,7 +85,7 @@ const EditBillModal = ({ isOpen, bill, categories = [], onClose, onSuccess }) =>
     try {
       await billService.updateBill(bill.id, {
         name: form.name.trim(),
-        amount: Number(form.amount),
+        amount: parseNumberInput(form.amount),
         due_day: Number(form.due_day),
         category_id: form.category_id ? Number(form.category_id) : null,
         is_active: form.is_active ? 1 : 0,
@@ -149,9 +151,8 @@ const EditBillModal = ({ isOpen, bill, categories = [], onClose, onSuccess }) =>
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase tracking-wider text-navy/50">Nominal Tagihan</label>
               <input
-                type="number"
-                min="1"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={form.amount}
                 onChange={(e) => handleChange('amount', e.target.value)}
                 disabled={submitting}
@@ -159,7 +160,7 @@ const EditBillModal = ({ isOpen, bill, categories = [], onClose, onSuccess }) =>
                 placeholder="Rp 0"
                 required
               />
-              <p className="text-xs font-bold text-navy/30">Nominal: {formatRp(form.amount)}</p>
+              <p className="text-xs font-bold text-navy/30">Nominal: {formatRp(parseNumberInput(form.amount))}</p>
             </div>
 
             <div className="space-y-2">

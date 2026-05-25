@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
 import { HiOutlinePencilAlt, HiOutlineX } from 'react-icons/hi';
 import api from '../../services/api';
 import transactionService from '../../services/transactionService';
@@ -42,7 +43,7 @@ const EditTransactionModal = ({ isOpen, transaction, onClose, onSuccess }) => {
     setForm({
       type: transaction.type || 'expense',
       category_id: transaction.category_id ? String(transaction.category_id) : '',
-      amount: transaction.amount ? String(Number(transaction.amount)) : '',
+      amount: transaction.amount ? formatNumberInput(String(Number(transaction.amount))) : '',
       description: transaction.description || '',
       transaction_date: toDateInputValue(transaction.transaction_date),
     });
@@ -98,7 +99,7 @@ const EditTransactionModal = ({ isOpen, transaction, onClose, onSuccess }) => {
       return 'Kategori wajib dipilih.';
     }
 
-    if (!form.amount || Number(form.amount) <= 0) {
+    if (!form.amount || parseNumberInput(form.amount) <= 0) {
       return 'Nominal harus lebih dari 0.';
     }
 
@@ -125,7 +126,7 @@ const EditTransactionModal = ({ isOpen, transaction, onClose, onSuccess }) => {
       await transactionService.updateTransaction(transaction.id, {
         type: form.type,
         category_id: Number(form.category_id),
-        amount: Number(form.amount),
+        amount: parseNumberInput(form.amount),
         description: form.description.trim() || null,
         transaction_date: form.transaction_date,
       });
@@ -226,9 +227,8 @@ const EditTransactionModal = ({ isOpen, transaction, onClose, onSuccess }) => {
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase tracking-wider text-navy/50">Nominal</label>
               <input
-                type="number"
-                min="1"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={form.amount}
                 onChange={(e) => handleChange('amount', e.target.value)}
                 disabled={submitting}

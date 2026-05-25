@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
 import { HiOutlinePencilAlt, HiOutlineX } from 'react-icons/hi';
 import budgetService from '../../services/budgetService';
 
@@ -39,7 +40,7 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
     if (!isOpen || !budget) return;
 
     setForm({
-      limit_amount: budget.limit_amount ? String(Number(budget.limit_amount)) : '',
+      limit_amount: budget.limit_amount ? formatNumberInput(String(Number(budget.limit_amount))) : '',
       budget_month: toMonthInputValue(budget.budget_month),
       description: budget.description || '',
     });
@@ -49,12 +50,13 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
   if (!isOpen || !budget) return null;
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    const formatted = (field === 'limit_amount') ? formatNumberInput(value) : value;
+    setForm((prev) => ({ ...prev, [field]: formatted }));
     setError('');
   };
 
   const validateForm = () => {
-    if (!form.limit_amount || Number(form.limit_amount) <= 0) {
+    if (!form.limit_amount || parseNumberInput(form.limit_amount) <= 0) {
       return 'Nominal budget harus lebih dari 0.';
     }
 
@@ -82,7 +84,7 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
       // budget_month dan description tetap ditampilkan agar modal reusable dan siap
       // jika endpoint backend nantinya mendukung field tambahan.
       await budgetService.updateBudget(budget.id, {
-        limit_amount: Number(form.limit_amount),
+        limit_amount: parseNumberInput(form.limit_amount),
       });
 
       toast.success('Budget berhasil diupdate! 📊');
@@ -148,9 +150,8 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase tracking-wider text-navy/50">Nominal Budget</label>
               <input
-                type="number"
-                min="1"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 value={form.limit_amount}
                 onChange={(e) => handleChange('limit_amount', e.target.value)}
                 disabled={submitting}
@@ -158,7 +159,7 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
                 placeholder="Rp 0"
                 required
               />
-              <p className="text-xs font-bold text-navy/30">Nominal baru: {formatRp(form.limit_amount)}</p>
+              <p className="text-xs font-bold text-navy/30">Nominal baru: {formatRp(parseNumberInput(form.limit_amount))}</p>
             </div>
 
             <div className="space-y-2">

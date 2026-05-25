@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import profileService from '../../services/profileService';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
 import { HiOutlineX } from 'react-icons/hi';
 
 const formatRp = (value) => new Intl.NumberFormat('id-ID', {
@@ -28,13 +29,13 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
   if (!isOpen) return null;
 
   const handleSave = async () => {
-    if (!allowance || Number(allowance) <= 0) {
+    if (!allowance || parseNumberInput(allowance) <= 0) {
       toast.error('Masukkan nominal uang bulanan');
       return;
     }
     setSaving(true);
     try {
-      await profileService.updateProfile({ monthly_allowance: Number(allowance) });
+      await profileService.updateProfile({ monthly_allowance: parseNumberInput(allowance) });
       toast.success('Uang bulanan disimpan! 💰');
       onComplete?.();
       onClose?.();
@@ -71,12 +72,12 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
             <div>
               <label className="block text-sm font-bold text-navy mb-2">💵 Uang Bulanan Kamu</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={allowance}
-                onChange={(e) => setAllowance(e.target.value)}
+                onChange={(e) => setAllowance(formatNumberInput(e.target.value))}
                 className="input-brutal text-xl font-bold text-center"
                 placeholder="Rp 0"
-                min="1"
                 autoFocus
               />
             </div>
@@ -86,9 +87,9 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => setAllowance(String(preset))}
+                  onClick={() => setAllowance(formatNumberInput(String(preset)))}
                   className={`py-2 px-3 rounded-brutal border-2 text-xs font-bold transition-all ${
-                    Number(allowance) === preset
+                    parseNumberInput(allowance) === preset
                       ? 'bg-primary text-white border-navy shadow-brutal-sm'
                       : 'border-navy/10 text-navy/50 hover:border-navy/30 hover:bg-cream'
                   }`}
@@ -98,7 +99,7 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
               ))}
             </div>
 
-            {allowance && Number(allowance) > 0 && (
+            {allowance && parseNumberInput(allowance) > 0 && (
               <p className="text-center text-sm font-bold text-income">
                 Uang bulanan: {formatRp(allowance)}
               </p>
@@ -107,7 +108,7 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || !allowance || Number(allowance) <= 0}
+              disabled={saving || !allowance || parseNumberInput(allowance) <= 0}
               className="btn-brutal w-full text-center disabled:opacity-50"
             >
               {saving ? '⏳ Menyimpan...' : '💬 Mulai Kelola Keuangan'}

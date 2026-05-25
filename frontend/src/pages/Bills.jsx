@@ -4,6 +4,7 @@ import billService from '../services/billService';
 import EditBillModal from '../components/Bills/EditBillModal';
 import PayBillModal from '../components/Bills/PayBillModal';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../utils/currencyInput';
 import {
   HiOutlinePlus,
   HiOutlineTrash,
@@ -82,7 +83,7 @@ const Bills = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.amount || Number(form.amount) <= 0) {
+    if (!form.name.trim() || !form.amount || parseNumberInput(form.amount) <= 0) {
       return toast.error('Nama dan nominal tagihan wajib diisi dengan benar');
     }
     const dueDay = Number(form.due_day);
@@ -93,7 +94,7 @@ const Bills = () => {
     try {
       await billService.createBill({
         name: form.name.trim(),
-        amount: parseFloat(form.amount),
+        amount: parseNumberInput(form.amount),
         due_day: parseInt(form.due_day),
         category_id: form.category_id ? parseInt(form.category_id) : null,
       });
@@ -144,12 +145,12 @@ const Bills = () => {
               disabled={submittingCreate}
             />
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              onChange={(e) => setForm({ ...form, amount: formatNumberInput(e.target.value) })}
               className="input-brutal"
               placeholder="Nominal (Rp)"
-              min="1"
               required
               disabled={submittingCreate}
             />

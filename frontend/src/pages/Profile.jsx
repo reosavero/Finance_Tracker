@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import profileService from '../services/profileService';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../utils/currencyInput';
 import {
   HiOutlineUser,
   HiOutlineMail,
@@ -58,7 +59,7 @@ const Profile = () => {
         const data = res.data.data;
         setName(data.name || '');
         setEmail(data.email || '');
-        setMonthlyAllowance(data.monthly_allowance || '');
+        setMonthlyAllowance(data.monthly_allowance ? formatNumberInput(String(Number(data.monthly_allowance))) : '');
         setAccountInfo(data);
       } catch (err) {
         toast.error('Gagal memuat data profil.');
@@ -86,7 +87,7 @@ const Profile = () => {
       const res = await profileService.updateProfile({
         name: name.trim(),
         email: email.trim(),
-        monthly_allowance: parseFloat(monthlyAllowance) || 0,
+        monthly_allowance: parseNumberInput(monthlyAllowance) || 0,
       });
       updateUser(res.data.data);
       setAccountInfo(res.data.data);
@@ -374,12 +375,12 @@ const Profile = () => {
                   Rp
                 </span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={monthlyAllowance}
-                  onChange={(e) => setMonthlyAllowance(e.target.value)}
+                  onChange={(e) => setMonthlyAllowance(formatNumberInput(e.target.value))}
                   className="input-brutal !pl-12"
                   placeholder="0"
-                  min="0"
                 />
               </div>
             </div>

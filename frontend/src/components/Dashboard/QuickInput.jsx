@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
 import {
   HiOutlinePlus,
   HiOutlineMinus,
@@ -78,14 +79,14 @@ const QuickInput = ({ onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || !categoryId) return toast.error('Nominal dan kategori wajib diisi');
+    if (!amount || parseNumberInput(amount) <= 0) return toast.error('Nominal dan kategori wajib diisi');
     if (type === 'expense' && isBudgetLocked) {
       return toast.error('Kategori ini sudah melewati limit anggaran bulan ini, input pengeluaran ditolak.');
     }
     setLoading(true);
     try {
       await api.post('/transactions', {
-        type, amount: parseFloat(amount), category_id: parseInt(categoryId),
+        type, amount: parseNumberInput(amount), category_id: parseInt(categoryId),
         description: description || null, transaction_date: date,
       });
       toast.success(type === 'expense' ? 'Pengeluaran dicatat! 📝' : 'Pemasukan dicatat! 💸');
@@ -119,7 +120,7 @@ const QuickInput = ({ onSuccess }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+        <input type="text" inputMode="numeric" value={amount} onChange={(e) => setAmount(formatNumberInput(e.target.value))}
           className={`input-brutal text-xl font-bold ${
             amount && type === 'income' ? 'border-income focus:shadow-brutal-income' :
             amount && type === 'expense' ? 'border-expense focus:shadow-brutal-expense' : ''

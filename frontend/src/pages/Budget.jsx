@@ -3,6 +3,7 @@ import api from '../services/api';
 import budgetService from '../services/budgetService';
 import EditBudgetModal from '../components/Budget/EditBudgetModal';
 import toast from 'react-hot-toast';
+import { formatNumberInput, parseNumberInput } from '../utils/currencyInput';
 import { HiOutlinePencilAlt, HiOutlineTrash } from 'react-icons/hi';
 
 const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
@@ -36,7 +37,7 @@ const Budget = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.category_id || !form.limit_amount || Number(form.limit_amount) <= 0) {
+    if (!form.category_id || !form.limit_amount || parseNumberInput(form.limit_amount) <= 0) {
       return toast.error('Kategori dan nominal budget wajib diisi dengan benar');
     }
 
@@ -44,7 +45,7 @@ const Budget = () => {
     try {
       await budgetService.createBudget({
         category_id: parseInt(form.category_id),
-        limit_amount: parseFloat(form.limit_amount),
+        limit_amount: parseNumberInput(form.limit_amount),
       });
       toast.success('Budget disimpan! 📊');
       setForm({ category_id: '', limit_amount: '' });
@@ -116,8 +117,8 @@ const Budget = () => {
               <option value="">Pilih Kategori</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select>
-            <input type="number" value={form.limit_amount} onChange={(e) => setForm({ ...form, limit_amount: e.target.value })}
-              className="input-brutal flex-1" placeholder="Batas (Rp)" min="1" required disabled={submittingCreate} />
+            <input type="text" inputMode="numeric" value={form.limit_amount} onChange={(e) => setForm({ ...form, limit_amount: formatNumberInput(e.target.value) })}
+              className="input-brutal flex-1" placeholder="Batas (Rp)" required disabled={submittingCreate} />
             <button type="submit" disabled={submittingCreate} className="btn-brutal-secondary whitespace-nowrap disabled:opacity-50">
               {submittingCreate ? '⏳ Menyimpan...' : '💾 Simpan'}
             </button>
