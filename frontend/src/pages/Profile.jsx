@@ -507,37 +507,11 @@ const Profile = () => {
                       )}
                     </button>
                   </div>
-                  {/* Password strength indicator */}
-                  {newPassword && (
-                    <div className="mt-2">
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4].map((level) => (
-                          <div
-                            key={level}
-                            className={`h-1.5 flex-1 rounded-full border border-navy/20 transition-all duration-300 ${
-                              newPassword.length >= level * 3
-                                ? level <= 1
-                                  ? 'bg-expense'
-                                  : level <= 2
-                                  ? 'bg-warning'
-                                  : level <= 3
-                                  ? 'bg-secondary'
-                                  : 'bg-income'
-                                : 'bg-navy/10'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs text-navy/40 font-medium mt-1">
-                        {newPassword.length < 6
-                          ? 'Terlalu pendek'
-                          : newPassword.length < 8
-                          ? 'Cukup kuat'
-                          : newPassword.length < 12
-                          ? 'Kuat'
-                          : 'Sangat kuat'} 
-                      </p>
-                    </div>
+                  {/* Info minimal karakter */}
+                  {newPassword && newPassword.length < 6 && (
+                    <p className="text-xs text-expense font-bold mt-2">
+                      Password minimal 6 karakter ({newPassword.length}/6)
+                    </p>
                   )}
                 </div>
 
@@ -615,7 +589,7 @@ const Profile = () => {
           <div>
             <h4 className="text-sm font-bold text-navy">Tips Keamanan Akun</h4>
             <ul className="text-xs text-navy/50 font-medium mt-1.5 space-y-1">
-              <li>• Gunakan password minimal 6 karakter dengan kombinasi huruf dan angka</li>
+              <li>• Gunakan password minimal 6 karakter</li>
               <li>• Jangan bagikan password Anda kepada siapa pun</li>
               <li>• Ubah password secara berkala untuk menjaga keamanan akun</li>
             </ul>
