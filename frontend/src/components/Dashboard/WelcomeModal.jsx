@@ -99,12 +99,6 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
               ))}
             </div>
 
-            {allowance && parseNumberInput(allowance) > 0 && (
-              <p className="text-center text-sm font-bold text-income">
-                Uang bulanan: {formatRp(allowance)}
-              </p>
-            )}
-
             <button
               type="button"
               onClick={handleSave}
