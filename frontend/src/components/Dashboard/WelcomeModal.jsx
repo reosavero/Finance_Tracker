@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import profileService from '../../services/profileService';
 import toast from 'react-hot-toast';
 import { HiOutlineX } from 'react-icons/hi';
@@ -10,6 +10,18 @@ const formatRp = (value) => new Intl.NumberFormat('id-ID', {
 const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
   const [allowance, setAllowance] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Kunci scroll body saat modal terbuka
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   const presets = [500000, 1000000, 1500000, 2000000, 3000000, 5000000];
 
@@ -38,8 +50,8 @@ const WelcomeModal = ({ isOpen, onClose, onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-white border-3 border-navy rounded-brutal shadow-brutal animate-pop">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-navy/50 backdrop-blur-sm">
+      <div className="relative w-full max-w-md bg-white border-3 border-navy rounded-brutal shadow-brutal animate-pop max-h-[90vh] overflow-y-auto">
 
         <button onClick={handleSkip}
           className="absolute top-4 right-4 p-1.5 rounded-brutal border-2 border-transparent text-navy/30 hover:text-navy hover:border-navy/20 hover:bg-cream transition-all">

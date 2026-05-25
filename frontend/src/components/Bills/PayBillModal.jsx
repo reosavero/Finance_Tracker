@@ -30,6 +30,18 @@ const PayBillModal = ({ isOpen, bill, onClose, onSuccess }) => {
   const [error, setError] = useState('');
   const [successData, setSuccessData] = useState(null);
 
+  // Kunci scroll body saat modal terbuka
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   const fetchBalance = useCallback(async () => {
     setLoadingBalance(true);
     setError('');
@@ -123,9 +135,9 @@ const PayBillModal = ({ isOpen, bill, onClose, onSuccess }) => {
   // ===================== SUCCESS STATE =====================
   if (successData) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/60 px-4 backdrop-blur-sm" onClick={handleClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-navy/60 px-4 py-4 backdrop-blur-sm" onClick={handleClose}>
         <div
-          className="w-full max-w-md animate-bounce-in overflow-hidden rounded-brutal-lg border-3 border-navy bg-white shadow-brutal-lg"
+          className="w-full max-w-md animate-bounce-in overflow-y-auto rounded-brutal-lg border-3 border-navy bg-white shadow-brutal-lg max-h-[90vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header sukses */}
@@ -200,9 +212,9 @@ const PayBillModal = ({ isOpen, bill, onClose, onSuccess }) => {
 
   // ===================== CONFIRMATION STATE =====================
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/60 px-4 backdrop-blur-sm" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-navy/60 px-4 py-4 backdrop-blur-sm" onClick={handleClose}>
       <div
-        className="w-full max-w-md animate-slide-up overflow-hidden rounded-brutal-lg border-3 border-navy bg-white shadow-brutal-lg"
+        className="w-full max-w-md animate-slide-up overflow-y-auto rounded-brutal-lg border-3 border-navy bg-white shadow-brutal-lg max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

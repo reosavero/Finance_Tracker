@@ -23,6 +23,18 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Kunci scroll body saat modal terbuka
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen || !budget) return;
 
@@ -86,8 +98,8 @@ const EditBudgetModal = ({ isOpen, budget, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/50 px-4 py-4 backdrop-blur-sm sm:items-center">
-      <div className="w-full max-w-xl animate-slide-up overflow-hidden rounded-brutal border-3 border-navy bg-white shadow-brutal">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-navy/50 px-4 py-4 backdrop-blur-sm sm:items-center">
+      <div className="w-full max-w-xl animate-slide-up overflow-y-auto rounded-brutal border-3 border-navy bg-white shadow-brutal max-h-[90vh]">
         <div className="flex items-start justify-between gap-4 border-b-3 border-navy bg-cream px-5 py-4">
           <div className="flex items-center gap-3">
             <div
