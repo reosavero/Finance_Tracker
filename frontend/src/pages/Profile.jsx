@@ -363,11 +363,11 @@ const Profile = () => {
               />
             </div>
 
-            {/* Uang Saku */}
+            {/* Uang Bulanan */}
             <div>
               <label className="block text-sm font-bold text-navy mb-2">
                 <HiOutlineCurrencyDollar className="inline w-4 h-4 mr-1.5 -mt-0.5" />
-                Uang Saku Bulanan
+                Uang Bulanan
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-navy/40">

@@ -11,7 +11,7 @@ require('dotenv').config();
 // Register user baru
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, monthly_allowance } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -33,10 +33,10 @@ const register = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert user
+    // Insert user (uang bulanan default 0, user isi sendiri nanti)
     const [result] = await pool.query(
-      'INSERT INTO users (name, email, password, monthly_allowance) VALUES (?, ?, ?, ?)',
-      [name, email, hashedPassword, monthly_allowance || 0]
+      'INSERT INTO users (name, email, password, monthly_allowance) VALUES (?, ?, ?, 0)',
+      [name, email, hashedPassword]
     );
 
     // Generate token
@@ -53,7 +53,7 @@ const register = async (req, res, next) => {
         id: result.insertId,
         name,
         email,
-        monthly_allowance: monthly_allowance || 0,
+        monthly_allowance: 0,
         profile_photo: null,
         token,
       },
@@ -137,7 +137,7 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-// Update profile (nama, email, uang saku bulanan)
+// Update profile (nama, email, uang bulanan)
 const updateProfile = async (req, res, next) => {
   try {
     const { name, email, monthly_allowance } = req.body;

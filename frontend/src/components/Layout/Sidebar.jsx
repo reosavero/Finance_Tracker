@@ -8,6 +8,7 @@ import {
   HiOutlineLogout,
   HiOutlineTag,
   HiOutlineUser,
+  HiOutlineLightningBolt,
 } from 'react-icons/hi';
 
 const getPhotoUrl = (photo) => {
@@ -22,6 +23,7 @@ const navItems = [
   { path: '/categories', icon: HiOutlineTag, label: 'Kategori', color: 'bg-secondary' },
   { path: '/budget', icon: HiOutlineChartBar, label: 'Anggaran', color: 'bg-income' },
   { path: '/bills', icon: HiOutlineCreditCard, label: 'Tagihan', color: 'bg-warning' },
+  { path: '/evaluation', icon: HiOutlineLightningBolt, label: 'Evaluasi', color: 'bg-lavender' },
 ];
 
 const Sidebar = () => {

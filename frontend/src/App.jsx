@@ -11,6 +11,7 @@ import Transactions from './pages/Transactions';
 import Budget from './pages/Budget';
 import Bills from './pages/Bills';
 import Categories from './pages/Categories';
+import MonthlyEvaluation from './pages/MonthlyEvaluation';
 import Profile from './pages/Profile';
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
               <Route path="/budget" element={<Budget />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/bills" element={<Bills />} />
+              <Route path="/evaluation" element={<MonthlyEvaluation />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>

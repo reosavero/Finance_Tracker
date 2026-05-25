@@ -4,14 +4,29 @@
 // =====================================================
 const { pool } = require('../config/db');
 
+// Helper: format tanggal lokal (bukan UTC) agar sesuai WIB
+const toLocalDateString = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const toLocalMonthString = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+};
+
 const getDashboardSummary = async (req, res, next) => {
   try {
     const user_id = req.user.id;
     const now = new Date();
     const startOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const endOfMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const endOfMonth = toLocalDateString(endOfMonthDate);
 
-    // 1. Data user (uang saku bulanan)
+    // 1. Data user (uang bulanan)
     const [users] = await pool.query(
       'SELECT monthly_allowance FROM users WHERE id = ?', [user_id]
     );
@@ -50,15 +65,54 @@ const getDashboardSummary = async (req, res, next) => {
       [user_id]
     );
 
-    // 6. Tagihan yang akan jatuh tempo
+    // 6. Tagihan yang akan jatuh tempo — beserta kategori & due_status
     const [upcomingBills] = await pool.query(
-      `SELECT * FROM recurring_bills WHERE user_id = ? AND is_active = 1
-       AND (last_paid_date IS NULL OR last_paid_date < ?)
-       ORDER BY due_day ASC LIMIT 5`,
+      `SELECT rb.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color
+       FROM recurring_bills rb
+       LEFT JOIN categories c ON rb.category_id = c.id
+       WHERE rb.user_id = ? AND rb.is_active = 1
+       AND (rb.last_paid_date IS NULL OR rb.last_paid_date < ?)
+       ORDER BY rb.due_day ASC LIMIT 5`,
       [user_id, startOfMonth]
     );
 
+    // Enrich bills with due_status (konsisten dengan billController)
+    const currentDay = now.getDate();
+    const currentMonth = toLocalMonthString(now);
+
+    const enrichedBills = upcomingBills.map((bill) => {
+      const lastPaidMonth = bill.last_paid_date
+        ? toLocalMonthString(new Date(bill.last_paid_date))
+        : null;
+      const isPaidThisMonth = lastPaidMonth === currentMonth;
+      let due_status = 'upcoming';
+      if (isPaidThisMonth) due_status = 'paid';
+      else if (currentDay > bill.due_day) due_status = 'overdue';
+      else if (bill.due_day - currentDay <= 3) due_status = 'due_soon';
+      return { ...bill, due_status, is_paid_this_month: isPaidThisMonth };
+    });
+
     const balance = monthlyAllowance + totalIncome - totalExpense;
+
+    // 7. Riwayat bulanan (6 bulan terakhir yang ada transaksi)
+    const [monthlyHistory] = await pool.query(
+      `SELECT
+        DATE_FORMAT(t.transaction_date, '%Y-%m') AS month,
+        COUNT(*) AS transaction_count,
+        COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) AS total_income,
+        COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS total_expense
+       FROM transactions t
+       WHERE t.user_id = ?
+       GROUP BY DATE_FORMAT(t.transaction_date, '%Y-%m')
+       ORDER BY month DESC
+       LIMIT 6`,
+      [user_id]
+    );
+
+    // Cache-control: pastikan browser tidak cache data dashboard
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
 
     res.json({
       success: true,
@@ -69,7 +123,8 @@ const getDashboardSummary = async (req, res, next) => {
         balance,
         category_breakdown: categoryBreakdown,
         recent_transactions: recentTransactions,
-        upcoming_bills: upcomingBills,
+        upcoming_bills: enrichedBills,
+        monthly_history: monthlyHistory,
         month: now.toISOString().slice(0, 7),
       },
     });

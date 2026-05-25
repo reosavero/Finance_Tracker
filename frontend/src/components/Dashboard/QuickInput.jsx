@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { HiOutlinePlus, HiOutlineMinus, HiOutlineLockClosed } from 'react-icons/hi';
+import {
+  HiOutlinePlus,
+  HiOutlineMinus,
+  HiOutlineLockClosed,
+} from 'react-icons/hi';
 
 const formatRp = (value) => new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -15,12 +19,20 @@ const getBudgetMonth = (dateString) => {
   return String(dateString).slice(0, 7);
 };
 
+// Helper: local date (WIB-safe, bukan UTC)
+const toLocalDate = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 const QuickInput = ({ onSuccess }) => {
   const [type, setType] = useState('expense');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(toLocalDate());
   const [categories, setCategories] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,7 +54,6 @@ const QuickInput = ({ onSuccess }) => {
         setBudgets([]);
         return;
       }
-
       try {
         const month = getBudgetMonth(date);
         const res = await api.get('/budgets', { params: month ? { month } : {} });
@@ -51,7 +62,6 @@ const QuickInput = ({ onSuccess }) => {
         setBudgets([]);
       }
     };
-
     fetchBudgets();
   }, [type, date]);
 
@@ -79,9 +89,10 @@ const QuickInput = ({ onSuccess }) => {
         description: description || null, transaction_date: date,
       });
       toast.success(type === 'expense' ? 'Pengeluaran dicatat! 📝' : 'Pemasukan dicatat! 💸');
+      // Refresh dashboard dulu, baru reset form
+      await onSuccess?.();
       setAmount(''); setDescription(''); setCategoryId('');
-      setDate(new Date().toISOString().slice(0, 10));
-      onSuccess?.();
+      setDate(toLocalDate());
     } catch (err) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan');
     } finally { setLoading(false); }
@@ -109,7 +120,11 @@ const QuickInput = ({ onSuccess }) => {
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
-          className="input-brutal text-xl font-bold" placeholder="Rp 0" min="1" required />
+          className={`input-brutal text-xl font-bold ${
+            amount && type === 'income' ? 'border-income focus:shadow-brutal-income' :
+            amount && type === 'expense' ? 'border-expense focus:shadow-brutal-expense' : ''
+          }`}
+          placeholder="Rp 0" min="1" required />
         <div className="grid grid-cols-2 gap-3">
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
             className="select-brutal text-sm" required>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import SummaryCards from '../components/Dashboard/SummaryCards';
@@ -6,24 +7,47 @@ import CategoryChart from '../components/Dashboard/CategoryChart';
 import QuickInput from '../components/Dashboard/QuickInput';
 import RecentTransactions from '../components/Dashboard/RecentTransactions';
 import UpcomingBills from '../components/Dashboard/UpcomingBills';
+import WelcomeModal from '../components/Dashboard/WelcomeModal';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
-      const res = await api.get('/dashboard/summary');
+      const res = await api.get('/dashboard/summary', {
+        params: { _t: Date.now() },
+      });
       setData(res.data.data);
+
+      // Tampilkan WelcomeModal jika uang bulanan = 0 (user baru)
+      if (Number(res.data.data.monthly_allowance) === 0 && !isRefresh) {
+        setShowWelcome(true);
+      }
     } catch (err) {
       console.error('Dashboard fetch error:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchDashboard(true);
+  }, [fetchDashboard]);
+
+  const handleWelcomeComplete = useCallback(async () => {
+    setShowWelcome(false);
+    // Refresh dashboard data setelah welcome selesai
+    await fetchDashboard(true);
+  }, [fetchDashboard]);
 
   if (loading) {
     return (
@@ -45,6 +69,13 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Welcome Modal untuk user baru */}
+      <WelcomeModal
+        isOpen={showWelcome}
+        onClose={() => setShowWelcome(false)}
+        onComplete={handleWelcomeComplete}
+      />
+
       {/* Header */}
       <div className="animate-slide-up">
         <h1 className="text-2xl md:text-3xl font-bold text-navy">
@@ -59,7 +90,7 @@ const Dashboard = () => {
       </div>
 
       {/* Summary Cards */}
-      <SummaryCards data={data} />
+      <SummaryCards data={data} refreshing={refreshing} />
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -71,8 +102,8 @@ const Dashboard = () => {
 
         {/* Right: Quick Input + Bills */}
         <div className="space-y-6">
-          <QuickInput onSuccess={fetchDashboard} />
-          <UpcomingBills bills={data?.upcoming_bills} />
+          <QuickInput onSuccess={handleRefresh} />
+          <UpcomingBills bills={data?.upcoming_bills} onPaySuccess={handleRefresh} />
         </div>
       </div>
     </div>

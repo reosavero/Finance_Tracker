@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+frontend/dist/
+
+# Uploads
+backend/uploads/
+
+# Environment
+**/.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Other
+Screenshots/
+hasil/
+perbaikan/
+xlsx_extract/
+package-lock.json
+package.json
+*.xlsx

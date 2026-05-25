@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const Register = () => {
-  const [form, setForm] = useState({ name: '', email: '', password: '', monthly_allowance: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ const Register = () => {
     if (form.password.length < 6) return toast.error('Password minimal 6 karakter');
     setLoading(true);
     try {
-      await register({ ...form, monthly_allowance: parseFloat(form.monthly_allowance) || 0 });
+      await register(form);
       toast.success('Registrasi berhasil! 🎉');
       navigate('/dashboard', { replace: true });
     } catch (err) {
@@ -55,11 +55,6 @@ const Register = () => {
               <label className="block text-sm font-bold text-navy mb-2">Password</label>
               <input name="password" type="password" value={form.password} onChange={handleChange}
                 className="input-brutal" placeholder="Minimal 6 karakter" required />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-navy mb-2">Uang Saku Bulanan</label>
-              <input name="monthly_allowance" type="number" value={form.monthly_allowance} onChange={handleChange}
-                className="input-brutal" placeholder="Contoh: 1500000" />
             </div>
             <button type="submit" disabled={loading} className="btn-brutal w-full text-center mt-2 disabled:opacity-50">
               {loading ? '⏳ Memproses...' : 'Daftar Sekarang'}

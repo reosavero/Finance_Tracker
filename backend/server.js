@@ -17,6 +17,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
 const billRoutes = require('./routes/billRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const evaluationRoutes = require('./routes/evaluationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +35,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/evaluation', evaluationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -49,6 +51,17 @@ const startServer = async () => {
   app.listen(PORT, () => {
     console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n❌ Port ${PORT} sudah dipakai!`);
+      console.error(`   Jalankan perintah ini di terminal lain:`);
+      console.error(`   netstat -ano | findstr ":${PORT}" | findstr "LISTENING"`);
+      console.error(`   Lalu: taskkill /F /PID <angka_terakhir>`);
+      console.error(`   Atau jalankan ulang: npm run dev\n`);
+      process.exit(1);
+    } else {
+      throw err;
+    }
   });
 };
 
