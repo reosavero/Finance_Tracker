@@ -97,7 +97,7 @@ const createCategory = async (req, res, next) => {
   }
 };
 
-// PUT — Edit kategori kustom milik user
+// PUT — Edit kategori (default: hanya nama/icon/color; custom: semua field)
 const updateCategory = async (req, res, next) => {
   try {
     const user_id = req.user.id;
@@ -111,17 +111,10 @@ const updateCategory = async (req, res, next) => {
       });
     }
 
-    if (!name || !type) {
+    if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Nama dan type kategori wajib diisi.',
-      });
-    }
-
-    if (!allowedTypes.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Type kategori harus expense atau income.',
+        message: 'Nama kategori wajib diisi.',
       });
     }
 
@@ -132,34 +125,75 @@ const updateCategory = async (req, res, next) => {
       });
     }
 
-    const [ownedCategory] = await pool.query(
-      'SELECT id FROM categories WHERE id = ? AND user_id = ? AND is_default = 0 LIMIT 1',
+    // Cek apakah kategori ada dan milik user (default atau custom)
+    const [categoryRows] = await pool.query(
+      'SELECT id, is_default, type FROM categories WHERE id = ? AND (is_default = 1 OR user_id = ?) LIMIT 1',
       [categoryId, user_id]
     );
 
-    if (ownedCategory.length === 0) {
+    if (categoryRows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Kategori tidak ditemukan atau tidak bisa diubah.',
+        message: 'Kategori tidak ditemukan.',
       });
     }
 
-    const [duplicate] = await pool.query(
-      'SELECT id FROM categories WHERE user_id = ? AND type = ? AND LOWER(name) = LOWER(?) AND id != ? LIMIT 1',
-      [user_id, type, name, categoryId]
-    );
+    const existingCategory = categoryRows[0];
 
-    if (duplicate.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: 'Kategori dengan nama yang sama sudah ada pada tipe ini.',
-      });
+    // Untuk kategori default: hanya boleh ubah nama, icon, warna (type tidak boleh diubah)
+    if (existingCategory.is_default) {
+      const finalType = existingCategory.type; // type tetap, tidak bisa diubah
+
+      // Cek duplikat nama pada tipe yang sama
+      const [duplicate] = await pool.query(
+        'SELECT id FROM categories WHERE (is_default = 1 OR user_id = ?) AND type = ? AND LOWER(name) = LOWER(?) AND id != ? LIMIT 1',
+        [user_id, finalType, name, categoryId]
+      );
+
+      if (duplicate.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Kategori dengan nama yang sama sudah ada pada tipe ini.',
+        });
+      }
+
+      await pool.query(
+        'UPDATE categories SET name = ?, icon = ?, color = ? WHERE id = ?',
+        [name, icon, color, categoryId]
+      );
+    } else {
+      // Kategori custom: semua field bisa diubah
+      if (!type) {
+        return res.status(400).json({
+          success: false,
+          message: 'Type kategori wajib diisi.',
+        });
+      }
+
+      if (!allowedTypes.includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Type kategori harus expense atau income.',
+        });
+      }
+
+      const [duplicate] = await pool.query(
+        'SELECT id FROM categories WHERE user_id = ? AND type = ? AND LOWER(name) = LOWER(?) AND id != ? LIMIT 1',
+        [user_id, type, name, categoryId]
+      );
+
+      if (duplicate.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Kategori dengan nama yang sama sudah ada pada tipe ini.',
+        });
+      }
+
+      await pool.query(
+        'UPDATE categories SET name = ?, icon = ?, color = ?, type = ? WHERE id = ? AND user_id = ? AND is_default = 0',
+        [name, icon, color, type, categoryId, user_id]
+      );
     }
-
-    await pool.query(
-      'UPDATE categories SET name = ?, icon = ?, color = ?, type = ? WHERE id = ? AND user_id = ? AND is_default = 0',
-      [name, icon, color, type, categoryId, user_id]
-    );
 
     const [updatedCategory] = await pool.query('SELECT * FROM categories WHERE id = ?', [categoryId]);
 
