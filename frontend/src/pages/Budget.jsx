@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import budgetService from '../services/budgetService';
 import EditBudgetModal from '../components/Budget/EditBudgetModal';
+import CategorySelect from '../components/ui/CategorySelect';
 import toast from 'react-hot-toast';
 import { formatNumberInput, parseNumberInput } from '../utils/currencyInput';
 import { HiOutlinePencilAlt, HiOutlineTrash } from 'react-icons/hi';
@@ -112,11 +113,15 @@ const Budget = () => {
       {showForm && (
         <div className="brutal-card animate-slide-up">
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-            <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="select-brutal flex-1" required disabled={submittingCreate}>
-              <option value="">Pilih Kategori</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-            </select>
+            <CategorySelect
+              value={form.category_id}
+              onChange={(id) => setForm({ ...form, category_id: id })}
+              categories={categories}
+              placeholder="Pilih Kategori"
+              type="expense"
+              disabled={submittingCreate}
+              className="flex-1"
+            />
             <input type="text" inputMode="numeric" value={form.limit_amount} onChange={(e) => setForm({ ...form, limit_amount: formatNumberInput(e.target.value) })}
               className="input-brutal flex-1" placeholder="Batas (Rp)" required disabled={submittingCreate} />
             <button type="submit" disabled={submittingCreate} className="btn-brutal-secondary whitespace-nowrap disabled:opacity-50">

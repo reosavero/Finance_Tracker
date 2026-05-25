@@ -3,6 +3,7 @@ import api from '../services/api';
 import billService from '../services/billService';
 import EditBillModal from '../components/Bills/EditBillModal';
 import PayBillModal from '../components/Bills/PayBillModal';
+import CategorySelect from '../components/ui/CategorySelect';
 import toast from 'react-hot-toast';
 import { formatNumberInput, parseNumberInput } from '../utils/currencyInput';
 import {
@@ -165,19 +166,13 @@ const Bills = () => {
               required
               disabled={submittingCreate}
             />
-            <select
+            <CategorySelect
               value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="select-brutal"
+              onChange={(id) => setForm({ ...form, category_id: id })}
+              categories={categories}
+              placeholder="Kategori (opsional)"
               disabled={submittingCreate}
-            >
-              <option value="">Kategori (opsional)</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
-                </option>
-              ))}
-            </select>
+            />
             <div className="sm:col-span-2">
               <button
                 type="submit"
