@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { formatNumberInput, parseNumberInput } from '../../utils/currencyInput';
@@ -33,28 +34,61 @@ const toLocalDate = (date = new Date()) => {
 // =====================================================
 // CategorySelect — Custom dropdown kategori dengan
 // sudut lengkung (neubrutalism), opsi tidak kotak
+// Dropdown di-portal ke document.body agar tidak tertimpa
 // =====================================================
 const CategorySelect = ({ value, onChange, categories, budgetMap, type, disabled }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const btnRef = useRef(null);
+  const portalRef = useRef(null);
+
+  // Hitung posisi dropdown berdasarkan posisi trigger button
+  const updatePos = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+    });
+  }, []);
+
+  // Update posisi saat buka & saat scroll/resize
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open, updatePos]);
 
   // Close on outside click
   useEffect(() => {
+    if (!open) return;
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (
+        btnRef.current && !btnRef.current.contains(e.target) &&
+        portalRef.current && !portalRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [open]);
 
   const selected = categories.find((c) => String(c.id) === String(value));
 
   return (
-    <div ref={ref} className="relative">
+    <>
       {/* Trigger button */}
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => { setOpen((prev) => !prev); updatePos(); }}
         disabled={disabled}
         className={`input-brutal w-full text-left flex items-center justify-between gap-2 text-sm ${
           value ? 'text-navy font-bold' : 'text-navy/30 font-medium'
@@ -66,9 +100,13 @@ const CategorySelect = ({ value, onChange, categories, budgetMap, type, disabled
         <HiOutlineChevronDown className={`w-4 h-4 shrink-0 text-navy/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown panel */}
-      {open && (
-        <div className="absolute left-0 right-0 top-full mt-2 z-50 max-h-52 overflow-y-auto rounded-brutal border-3 border-navy bg-white shadow-brutal-lg animate-pop">
+      {/* Dropdown panel — portal ke body agar tidak tertimpa card lain */}
+      {open && createPortal(
+        <div
+          ref={portalRef}
+          style={{ position: 'absolute', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+          className="max-h-52 overflow-y-auto rounded-brutal border-3 border-navy bg-white shadow-brutal-lg animate-pop"
+        >
           {categories.length === 0 && (
             <div className="px-4 py-3 text-xs font-medium text-navy/40">Tidak ada kategori</div>
           )}
@@ -111,9 +149,10 @@ const CategorySelect = ({ value, onChange, categories, budgetMap, type, disabled
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 };
 
